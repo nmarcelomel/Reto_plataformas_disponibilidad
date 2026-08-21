@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NOC Dashboard - Centro de Operaciones</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: #0a0a1a;
+            color: #e0e0e0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            padding: 1.5rem 2rem;
+            border-bottom: 1px solid #2a2a4a;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .header h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .header h1::before {
+            content: '';
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #666;
+            animation: pulse 2s infinite;
+        }
+
+        .header-meta {
+            font-size: 0.85rem;
+            color: #888;
+        }
+
+        .main-status {
+            padding: 3rem 2rem;
+            text-align: center;
+            transition: all 0.5s ease;
+        }
+
+        .main-status.healthy {
+            background: linear-gradient(180deg, rgba(16, 185, 129, 0.1) 0%, transparent 100%);
+        }
+
+        .main-status.degraded {
+            background: linear-gradient(180deg, rgba(239, 68, 68, 0.1) 0%, transparent 100%);
+        }
+
+        .main-status.unknown {
+            background: linear-gradient(180deg, rgba(107, 114, 128, 0.1) 0%, transparent 100%);
+        }
+
+        .status-icon {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+        }
+
+        .status-text {
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .status-subtext {
+            font-size: 1rem;
+            color: #888;
+        }
+
+        .healthy .status-text { color: #10b981; }
+        .degraded .status-text { color: #ef4444; }
+        .unknown .status-text { color: #6b7280; }
+
+        .services-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            padding: 2rem;
+            max-width: 1200px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .service-card {
+            background: #1a1a2e;
+            border: 1px solid #2a2a4a;
+            border-radius: 12px;
+            padding: 1.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .service-card:hover {
+            border-color: #4a4a6a;
+            transform: translateY(-2px);
+        }
+
+        .service-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .service-name {
+            font-weight: 600;
+            font-size: 1.1rem;
+        }
+
+        .service-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .badge-up {
+            background: rgba(16, 185, 129, 0.15);
+            color: #10b981;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .badge-down {
+            background: rgba(239, 68, 68, 0.15);
+            color: #ef4444;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        .badge-unknown {
+            background: rgba(107, 114, 128, 0.15);
+            color: #6b7280;
+            border: 1px solid rgba(107, 114, 128, 0.3);
+        }
+
+        .service-details {
+            font-size: 0.85rem;
+            color: #888;
+        }
+
+        .service-details p {
+            margin-bottom: 0.4rem;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .service-details .label {
+            color: #666;
+        }
+
+        .service-details .value {
+            color: #ccc;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .error-log {
+            margin-top: 1rem;
+            padding: 0.75rem;
+            background: rgba(239, 68, 68, 0.05);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            border-radius: 8px;
+            font-size: 0.8rem;
+            color: #ef4444;
+            font-family: monospace;
+            word-break: break-all;
+        }
+
+        .footer {
+            margin-top: auto;
+            padding: 1rem 2rem;
+            border-top: 1px solid #2a2a4a;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.8rem;
+            color: #666;
+        }
+
+        .poll-indicator {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .poll-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #4a4a6a;
+            transition: background 0.3s;
+        }
+
+        .poll-dot.active {
+            background: #10b981;
+            box-shadow: 0 0 8px rgba(16, 185, 129, 0.5);
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        .alert-banner {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            padding: 1rem 2rem;
+            text-align: center;
+            color: #ef4444;
+            font-weight: 500;
+            display: none;
+        }
+
+        .alert-banner.visible {
+            display: block;
+        }
+
+        .victory-banner {
+            display: none;
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(6, 78, 59, 0.2) 100%);
+            border: 2px solid rgba(16, 185, 129, 0.5);
+            border-radius: 16px;
+            padding: 2rem;
+            margin: 1.5rem 2rem;
+            text-align: center;
+            animation: victoryPulse 2s ease-in-out infinite;
+        }
+
+        .victory-banner.visible {
+            display: block;
+        }
+
+        .victory-banner h2 {
+            color: #10b981;
+            font-size: 1.6rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .victory-hash {
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(16, 185, 129, 0.4);
+            border-radius: 8px;
+            padding: 1rem 2rem;
+            display: inline-block;
+            margin: 1rem 0;
+            font-family: 'JetBrains Mono', 'Courier New', monospace;
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: #34d399;
+            letter-spacing: 2px;
+        }
+
+        .victory-subtitle {
+            color: #9ca3af;
+            font-size: 0.95rem;
+            margin-top: 0.75rem;
+            line-height: 1.6;
+        }
+
+        .victory-timestamp {
+            color: #6b7280;
+            font-size: 0.8rem;
+            margin-top: 1rem;
+            font-style: italic;
+        }
+
+        @keyframes victoryPulse {
+            0%, 100% { box-shadow: 0 0 20px rgba(16, 185, 129, 0.1); }
+            50% { box-shadow: 0 0 40px rgba(16, 185, 129, 0.25); }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <h1>NOC Dashboard</h1>
+        <div class="header-meta">
+            <span id="current-time">--:--:--</span> | Polling: 3s
+        </div>
+    </header>
+
+    <div id="alert-banner" class="alert-banner">
+        ALERTA: Se detectaron fallos en los sistemas. Revisando...
+    </div>
+
+    <div id="victory-banner" class="victory-banner">
+        <h2>&#127942; RETO SUPERADO &#127942;</h2>
+        <p class="victory-subtitle">Todos los errores de infraestructura han sido resueltos.<br>El NOC Dashboard esta completamente operacional.</p>
+        <div class="victory-hash">KIRO-OPS-8842</div>
+        <p class="victory-subtitle">Presenta este hash como prueba de victoria.</p>
+        <p class="victory-timestamp" id="victory-time"></p>
+    </div>
+
+    <section id="main-status" class="main-status unknown">
+        <div class="status-icon" id="status-icon">&#9899;</div>
+        <div class="status-text" id="status-text">Verificando sistemas...</div>
+        <div class="status-subtext" id="status-subtext">Iniciando monitoreo</div>
+    </section>
+
+    <section class="services-grid">
+        <div class="service-card" id="card-api">
+            <div class="service-card-header">
+                <span class="service-name">API Backend</span>
+                <span class="service-badge badge-unknown" id="badge-api">CHECKING</span>
+            </div>
+            <div class="service-details" id="details-api">
+                <p><span class="label">Endpoint:</span><span class="value">/api/health</span></p>
+                <p><span class="label">Response Time:</span><span class="value" id="api-rt">--</span></p>
+                <p><span class="label">Status:</span><span class="value" id="api-status">Pendiente</span></p>
+            </div>
+        </div>
+
+        <div class="service-card" id="card-db">
+            <div class="service-card-header">
+                <span class="service-name">PostgreSQL</span>
+                <span class="service-badge badge-unknown" id="badge-db">CHECKING</span>
+            </div>
+            <div class="service-details" id="details-db">
+                <p><span class="label">Host:</span><span class="value" id="db-host">--</span></p>
+                <p><span class="label">Response Time:</span><span class="value" id="db-rt">--</span></p>
+                <p><span class="label">Version:</span><span class="value" id="db-version">--</span></p>
+            </div>
+            <div class="error-log" id="db-error" style="display:none;"></div>
+        </div>
+
+        <div class="service-card" id="card-proxy">
+            <div class="service-card-header">
+                <span class="service-name">Nginx Proxy</span>
+                <span class="service-badge badge-unknown" id="badge-proxy">CHECKING</span>
+            </div>
+            <div class="service-details">
+                <p><span class="label">Port:</span><span class="value">80 (external)</span></p>
+                <p><span class="label">Upstream:</span><span class="value">backend:8080</span></p>
+                <p><span class="label">Status:</span><span class="value" id="proxy-status">Pendiente</span></p>
+            </div>
+        </div>
+
+        <div class="service-card" id="card-uptime">
+            <div class="service-card-header">
+                <span class="service-name">Uptime Monitor</span>
+                <span class="service-badge badge-unknown" id="badge-uptime">CHECKING</span>
+            </div>
+            <div class="service-details">
+                <p><span class="label">Backend Uptime:</span><span class="value" id="uptime-val">--</span></p>
+                <p><span class="label">Checks Exitosos:</span><span class="value" id="success-count">0</span></p>
+                <p><span class="label">Checks Fallidos:</span><span class="value" id="fail-count">0</span></p>
+            </div>
+        </div>
+    </section>
+
+    <footer class="footer">
+        <div>NOC Dashboard v1.0 | Hackathon Infrastructure Challenge</div>
+        <div class="poll-indicator">
+            <div class="poll-dot" id="poll-dot"></div>
+            <span id="last-check">Esperando primer check...</span>
+        </div>
+    </footer>
+
+    <script>
+        let successCount = 0;
+        let failCount = 0;
+        let victoryShown = false;
+
+        function updateTime() {
+            document.getElementById('current-time').textContent =
+                new Date().toLocaleTimeString('es-CO', { hour12: false });
+        }
+
+        function formatUptime(seconds) {
+            if (seconds < 60) return `${Math.floor(seconds)}s`;
+            if (seconds < 3600) return `${Math.floor(seconds / 60)}m ${Math.floor(seconds % 60)}s`;
+            return `${Math.floor(seconds / 3600)}h ${Math.floor((seconds % 3600) / 60)}m`;
+        }
+
+        function setStatus(mainStatus, statusText, subText) {
+            const el = document.getElementById('main-status');
+            el.className = `main-status ${mainStatus}`;
+            document.getElementById('status-text').textContent = statusText;
+            document.getElementById('status-subtext').textContent = subText;
+
+            const icon = document.getElementById('status-icon');
+            if (mainStatus === 'healthy') icon.textContent = '\u2705';
+            else if (mainStatus === 'degraded') icon.textContent = '\u274C';
+            else icon.textContent = '\u26AB';
+
+            const headerDot = document.querySelector('.header h1::before');
+            const banner = document.getElementById('alert-banner');
+            if (mainStatus === 'degraded') {
+                banner.classList.add('visible');
+            } else {
+                banner.classList.remove('visible');
+            }
+        }
+
+        function setBadge(id, status) {
+            const badge = document.getElementById(id);
+            badge.className = 'service-badge';
+            if (status === 'up') {
+                badge.classList.add('badge-up');
+                badge.textContent = 'OPERATIONAL';
+            } else if (status === 'down') {
+                badge.classList.add('badge-down');
+                badge.textContent = 'DOWN';
+            } else {
+                badge.classList.add('badge-unknown');
+                badge.textContent = 'UNKNOWN';
+            }
+        }
+
+        async function checkHealth() {
+            const pollDot = document.getElementById('poll-dot');
+            pollDot.classList.add('active');
+            setTimeout(() => pollDot.classList.remove('active'), 500);
+
+            try {
+                const startTime = Date.now();
+                const response = await fetch('/api/health', {
+                    signal: AbortSignal.timeout(8000)
+                });
+                const elapsed = Date.now() - startTime;
+
+                if (response.ok) {
+                    const data = await response.json();
+                    successCount++;
+
+                    // API Status
+                    setBadge('badge-api', 'up');
+                    document.getElementById('api-rt').textContent = `${data.services.api.responseTime}ms`;
+                    document.getElementById('api-status').textContent = 'Operacional';
+
+                    // DB Status
+                    if (data.services.database.status === 'connected') {
+                        setBadge('badge-db', 'up');
+                        document.getElementById('db-rt').textContent = `${data.services.database.responseTime}ms`;
+                        document.getElementById('db-version').textContent = data.services.database.version || '--';
+                        document.getElementById('db-error').style.display = 'none';
+                    } else {
+                        setBadge('badge-db', 'down');
+                        document.getElementById('db-error').style.display = 'block';
+                        document.getElementById('db-error').textContent = data.services.database.error || 'Connection failed';
+                    }
+
+                    // Proxy Status
+                    setBadge('badge-proxy', 'up');
+                    document.getElementById('proxy-status').textContent = 'Operacional';
+
+                    // Uptime
+                    document.getElementById('uptime-val').textContent = formatUptime(data.uptime);
+                    if (data.uptime > 30) {
+                        setBadge('badge-uptime', 'up');
+                    } else {
+                        setBadge('badge-uptime', 'down');
+                    }
+
+                    // Overall status
+                    if (data.status === 'healthy') {
+                        setStatus('healthy', 'Todos los sistemas operacionales', `Respuesta en ${elapsed}ms | Uptime: ${formatUptime(data.uptime)}`);
+
+                        // Victory condition: healthy + DB connected + uptime > 30s
+                        if (data.uptime > 30 && data.services.database.status === 'connected' && !victoryShown) {
+                            victoryShown = true;
+                            document.getElementById('victory-banner').classList.add('visible');
+                            document.getElementById('victory-time').textContent =
+                                `Completado: ${new Date().toLocaleString('es-CO', { hour12: false })} | Uptime al momento: ${formatUptime(data.uptime)}`;
+                        }
+                    } else {
+                        setStatus('degraded', 'Sistema degradado', `Base de datos no disponible`);
+                        document.getElementById('victory-banner').classList.remove('visible');
+                        victoryShown = false;
+                    }
+                } else {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+            } catch (error) {
+                failCount++;
+                setStatus('degraded', 'Fallos detectados en los sistemas', error.message);
+                setBadge('badge-api', 'down');
+                setBadge('badge-db', 'down');
+                setBadge('badge-proxy', 'down');
+                setBadge('badge-uptime', 'down');
+                document.getElementById('api-status').textContent = error.message;
+                document.getElementById('proxy-status').textContent = 'Error de conexion';
+            }
+
+            document.getElementById('success-count').textContent = successCount;
+            document.getElementById('fail-count').textContent = failCount;
+            document.getElementById('last-check').textContent =
+                `Ultimo check: ${new Date().toLocaleTimeString('es-CO', { hour12: false })}`;
+        }
+
+        // Initial check + polling every 3 seconds
+        updateTime();
+        setInterval(updateTime, 1000);
+        checkHealth();
+        setInterval(checkHealth, 3000);
+    </script>
+</body>
+</html>

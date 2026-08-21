@@ -1,0 +1,75 @@
+version: '3.8'
+
+services:
+  # ===========================================
+  # Frontend + Nginx Reverse Proxy
+  # ===========================================
+  proxy:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    ports:
+      - "80:80"
+    networks:
+      - noc-network
+    depends_on:
+      backend:
+        condition: service_started
+    restart: unless-stopped
+
+  # ===========================================
+  # Backend API (Node.js)
+  # ===========================================
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      - NODE_ENV=production
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_NAME=noc_dashboard
+      - DB_USER=nocadmin
+      - DB_PASSWORD=N0c_s3cur3_2024!
+    networks:
+      - noc-network
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 48M
+
+  # ===========================================
+  # PostgreSQL Database
+  # ===========================================
+  db:
+    build:
+      context: ./database
+      dockerfile: Dockerfile
+    environment:
+      - POSTGRES_DB=noc_dashboard
+      - POSTGRES_USER=nocadmin
+      - POSTGRES_PASSWORD=N0c_s3cur3_2024!
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - noc-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nocadmin -d noc_dashboard"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+# ===========================================
+# Networks
+# ===========================================
+networks:
+  noc-network:
+    driver: bridge
+
+volumes:
+  pgdata:

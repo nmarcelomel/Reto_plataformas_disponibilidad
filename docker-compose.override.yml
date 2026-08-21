@@ -1,0 +1,10 @@
+version: '3.8'
+
+# Development overrides
+# Enables debug logging and local DB access
+
+services:
+  backend:
+    environment:
+      - LOG_LEVEL=debug
+      - TELEMETRY_INTERVAL=1500
